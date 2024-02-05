@@ -38,7 +38,12 @@ pub(crate) fn map_bound(bound: Bound<&[u8]>) -> Bound<Bytes> {
 impl MemTable {
     /// Create a new mem-table.
     pub fn create(_id: usize) -> Self {
-        unimplemented!()
+        MemTable {
+            map: Arc::new(SkipMap::new()),
+            wal: None,
+            id: _id,
+            approximate_size: Arc::new(AtomicUsize::new(0)),
+        }
     }
 
     /// Create a new mem-table with WAL
@@ -69,7 +74,10 @@ impl MemTable {
 
     /// Get a value by key.
     pub fn get(&self, _key: &[u8]) -> Option<Bytes> {
-        unimplemented!()
+        match self.map.get(_key) {
+            None => return None,
+            Some(e) => return Some(e.value().clone()),
+        }
     }
 
     /// Put a key-value pair into the mem-table.
@@ -77,7 +85,10 @@ impl MemTable {
     /// In week 1, day 1, simply put the key-value pair into the skipmap.
     /// In week 2, day 6, also flush the data to WAL.
     pub fn put(&self, _key: &[u8], _value: &[u8]) -> Result<()> {
-        unimplemented!()
+        let key = Bytes::from(_key.to_owned());
+        let value = Bytes::from(_value.to_owned());
+        let _ = self.map.insert(key, value);
+        return Ok(());
     }
 
     pub fn sync_wal(&self) -> Result<()> {
