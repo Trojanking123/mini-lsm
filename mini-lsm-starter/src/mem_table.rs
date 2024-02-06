@@ -8,6 +8,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use bytes::Bytes;
 use crossbeam_skiplist::SkipMap;
+use nom::AsBytes;
 use ouroboros::self_referencing;
 
 use crate::iterators::StorageIterator;
@@ -76,7 +77,12 @@ impl MemTable {
     pub fn get(&self, _key: &[u8]) -> Option<Bytes> {
         match self.map.get(_key) {
             None => return None,
-            Some(e) => return Some(e.value().clone()),
+            Some(e) => {
+                if e.value().as_bytes() == b"" {
+                    return None;
+                }
+                return Some(e.value().clone());
+            }
         }
     }
 
@@ -87,7 +93,9 @@ impl MemTable {
     pub fn put(&self, _key: &[u8], _value: &[u8]) -> Result<()> {
         let key = Bytes::from(_key.to_owned());
         let value = Bytes::from(_value.to_owned());
+        let new_size = key.len() + value.len();
         let _ = self.map.insert(key, value);
+        self.approximate_size.fetch_add(new_size, std::sync::atomic::Ordering::Relaxed);
         return Ok(());
     }
 
