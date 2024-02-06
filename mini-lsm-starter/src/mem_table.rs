@@ -75,15 +75,7 @@ impl MemTable {
 
     /// Get a value by key.
     pub fn get(&self, _key: &[u8]) -> Option<Bytes> {
-        match self.map.get(_key) {
-            None => return None,
-            Some(e) => {
-                if e.value().as_bytes() == b"" {
-                    return None;
-                }
-                return Some(e.value().clone());
-            }
-        }
+        self.map.get(_key).map(|e| e.value().to_owned())
     }
 
     /// Put a key-value pair into the mem-table.
@@ -95,8 +87,9 @@ impl MemTable {
         let value = Bytes::from(_value.to_owned());
         let new_size = key.len() + value.len();
         let _ = self.map.insert(key, value);
-        self.approximate_size.fetch_add(new_size, std::sync::atomic::Ordering::Relaxed);
-        return Ok(());
+        self.approximate_size
+            .fetch_add(new_size, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
     }
 
     pub fn sync_wal(&self) -> Result<()> {
