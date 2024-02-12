@@ -7,12 +7,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::Bytes;
+use crossbeam_skiplist::map::Entry;
 use crossbeam_skiplist::SkipMap;
 use nom::AsBytes;
 use ouroboros::self_referencing;
 
 use crate::iterators::StorageIterator;
-use crate::key::KeySlice;
+use crate::key::{Key, KeySlice};
 use crate::table::SsTableBuilder;
 use crate::wal::Wal;
 
@@ -32,6 +33,14 @@ pub(crate) fn map_bound(bound: Bound<&[u8]>) -> Bound<Bytes> {
     match bound {
         Bound::Included(x) => Bound::Included(Bytes::copy_from_slice(x)),
         Bound::Excluded(x) => Bound::Excluded(Bytes::copy_from_slice(x)),
+        Bound::Unbounded => Bound::Unbounded,
+    }
+}
+
+fn mapping_bound(bound: Bound<&[u8]>) -> Bound<Bytes> {
+    match bound {
+        Bound::Included(bt) => Bound::Included(Bytes::copy_from_slice(bt)),
+        Bound::Excluded(bt) => Bound::Excluded(Bytes::copy_from_slice(bt)),
         Bound::Unbounded => Bound::Unbounded,
     }
 }
@@ -100,8 +109,21 @@ impl MemTable {
     }
 
     /// Get an iterator over a range of keys.
-    pub fn scan(&self, _lower: Bound<&[u8]>, _upper: Bound<&[u8]>) -> MemTableIterator {
-        unimplemented!()
+    pub fn scan(&self, lower: Bound<&[u8]>, upper: Bound<&[u8]>) -> MemTableIterator {
+        let low = mapping_bound(lower);
+        let up = mapping_bound(upper);
+        let mut iter = MemTableIteratorBuilder {
+            map: self.map.clone(),
+            iter_builder: |map: &Arc<SkipMap<Bytes, Bytes>>| map.range((low, up)),
+            item: (Bytes::new(), Bytes::new()),
+        }
+        .build();
+        let (k, v) = iter.get_entry();
+        iter.with_item_mut(|item| {
+            item.0 = k;
+            item.1 = v;
+        });
+        iter
     }
 
     /// Flush the mem-table to SSTable. Implement in week 1 day 6.
@@ -143,22 +165,39 @@ pub struct MemTableIterator {
     item: (Bytes, Bytes),
 }
 
+impl MemTableIterator {
+    fn get_entry(&mut self) -> (Bytes, Bytes) {
+        self.with_iter_mut(|iter| {
+            let zz = match iter.next() {
+                Some(e) => (e.key().clone(), e.value().clone()),
+                None => (Bytes::new(), Bytes::new()),
+            };
+            zz
+        })
+    }
+}
+
 impl StorageIterator for MemTableIterator {
     type KeyType<'a> = KeySlice<'a>;
 
     fn value(&self) -> &[u8] {
-        unimplemented!()
+        self.borrow_item().1.as_bytes()
     }
 
     fn key(&self) -> KeySlice {
-        unimplemented!()
+        Key::from_slice(&self.borrow_item().0[..])
     }
 
     fn is_valid(&self) -> bool {
-        unimplemented!()
+        !self.borrow_item().0.is_empty()
     }
 
     fn next(&mut self) -> Result<()> {
-        unimplemented!()
+        let (k, v) = self.get_entry();
+        self.with_item_mut(|iter| {
+            iter.0 = k;
+            iter.1 = v;
+        });
+        Ok(())
     }
 }
