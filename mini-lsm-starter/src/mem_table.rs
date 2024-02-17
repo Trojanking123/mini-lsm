@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use bytes::Bytes;
-use crossbeam_skiplist::map::Entry;
+
 use crossbeam_skiplist::SkipMap;
 use nom::AsBytes;
 use ouroboros::self_referencing;

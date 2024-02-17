@@ -1,7 +1,7 @@
 #![allow(unused_variables)] // TODO(you): remove this lint after implementing this mod
 #![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
 
-use std::cmp::{self};
+use std::cmp::{self, Ordering};
 use std::collections::binary_heap::PeekMut;
 use std::collections::BinaryHeap;
 
@@ -61,11 +61,11 @@ impl<I: StorageIterator> MergeIterator<I> {
             }
         }
         let cur = heap.pop();
-        let merged_iter = MergeIterator {
+
+        MergeIterator {
             iters: heap,
             current: cur,
-        };
-        merged_iter
+        }
     }
 }
 
@@ -83,29 +83,27 @@ impl<I: 'static + for<'a> StorageIterator<KeyType<'a> = KeySlice<'a>>> StorageIt
     }
 
     fn is_valid(&self) -> bool {
-        !self.current.as_ref().is_none()
+        self.current.as_ref().is_some()
     }
 
     fn next(&mut self) -> Result<()> {
-        let mut cur = std::mem::replace(&mut self.current, None).unwrap();
+        let mut cur = self.current.take().unwrap();
         while let Some(mut it) = self.iters.peek_mut() {
-            if it.1.key() == cur.1.key() {
-                match it.1.next() {
-                    Err(e) => return Err(e),
-                    Ok(_) => {}
-                };
-                if !it.1.is_valid() {
-                    PeekMut::pop(it);
+            match it.1.key().cmp(&cur.1.key()) {
+                Ordering::Equal => {
+                    it.1.next()?;
+                    if !it.1.is_valid() {
+                        PeekMut::pop(it);
+                    }
                 }
-            } else if it.1.key() > cur.1.key() {
-                break;
+                Ordering::Greater => {
+                    break;
+                }
+                Ordering::Less => {}
             }
         }
 
-        match cur.1.next() {
-            Err(e) => return Err(e),
-            Ok(_) => {}
-        };
+        cur.1.next()?;
         if cur.1.is_valid() {
             self.iters.push(cur);
         }

@@ -1,6 +1,5 @@
 #![allow(dead_code)] // REMOVE THIS LINE after fully implementing this functionality
 
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::ops::Bound;
 use std::path::{Path, PathBuf};
@@ -16,6 +15,7 @@ use crate::compact::{
     CompactionController, CompactionOptions, LeveledCompactionController, LeveledCompactionOptions,
     SimpleLeveledCompactionController, SimpleLeveledCompactionOptions, TieredCompactionController,
 };
+use crate::iterators::merge_iterator::MergeIterator;
 use crate::lsm_iterator::{FusedIterator, LsmIterator};
 use crate::manifest::Manifest;
 use crate::mem_table::MemTable;
@@ -410,9 +410,18 @@ impl LsmStorageInner {
     /// Create an iterator over a range of keys.
     pub fn scan(
         &self,
-        _lower: Bound<&[u8]>,
-        _upper: Bound<&[u8]>,
+        lower: Bound<&[u8]>,
+        upper: Bound<&[u8]>,
     ) -> Result<FusedIterator<LsmIterator>> {
-        unimplemented!()
+        let mut iter_vec = Vec::new();
+        let state = self.state.read();
+        iter_vec.push(Box::new(state.memtable.scan(lower, upper)));
+        for iter in state.imm_memtables.iter() {
+            iter_vec.push(Box::new(iter.scan(lower, upper)));
+        }
+        let merged_iter = MergeIterator::create(iter_vec);
+        let lsm_iter = LsmIterator::new(merged_iter).unwrap();
+        let fused_iter = FusedIterator::new(lsm_iter);
+        Ok(fused_iter)
     }
 }

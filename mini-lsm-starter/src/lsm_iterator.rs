@@ -17,6 +17,25 @@ pub struct LsmIterator {
 
 impl LsmIterator {
     pub(crate) fn new(iter: LsmIteratorInner) -> Result<Self> {
+        let mut iter = iter;
+        loop {
+            if iter.is_valid() {
+                if iter.value().is_empty() {
+                    match iter.next() {
+                        Ok(_) => {
+                            continue;
+                        }
+                        Err(e) => {
+                            break;
+                        }
+                    }
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
         Ok(Self { inner: iter })
     }
 }
@@ -37,7 +56,30 @@ impl StorageIterator for LsmIterator {
     }
 
     fn next(&mut self) -> Result<()> {
-        self.inner.next()
+        //self.inner.next()
+        let mut res;
+        loop {
+            res = self.inner.next();
+            match res {
+                Ok(_) => {
+                    if !self.inner.is_valid() {
+                        dbg!("invalid ok");
+                        return Ok(());
+                    }
+                    if self.value().is_empty() {
+                        dbg!("value empty coninue");
+                        continue;
+                    } else {
+                        dbg!("normal value");
+                        return Ok(());
+                    }
+                }
+                Err(e) => {
+                    dbg!("error return");
+                    return Err(e);
+                }
+            }
+        }
     }
 }
 
@@ -62,7 +104,14 @@ impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
     type KeyType<'a> = I::KeyType<'a> where Self: 'a;
 
     fn is_valid(&self) -> bool {
-        !self.has_errored && self.iter.is_valid()
+        // dbg!("--------------");
+        // if self.has_errored {
+        //     dbg!(self.has_errored);
+        // } else {
+        //     dbg!(self.has_errored);
+        //     dbg!(self.iter.is_valid());
+        // }
+        (!self.has_errored) && self.iter.is_valid()
     }
 
     fn key(&self) -> Self::KeyType<'_> {
@@ -76,7 +125,7 @@ impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
     fn next(&mut self) -> Result<()> {
         if self.is_valid() {
             match self.iter.next() {
-                Ok(_) => {}
+                Ok(_) => return Ok(()),
                 Err(_) => {
                     self.has_errored = true;
                     return Err(anyhow::Error::msg("fsdfasdf"));
@@ -84,9 +133,9 @@ impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
             }
         }
         if self.has_errored {
-            return Err(anyhow::Error::msg("abcd"));
+            Err(anyhow::Error::msg("abcd"))
         } else {
-            return Ok(());
+            Ok(())
         }
     }
 }
