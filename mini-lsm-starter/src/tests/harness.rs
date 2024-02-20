@@ -150,7 +150,6 @@ where
     I: for<'a> StorageIterator<KeyType<'a> = &'a [u8]>,
 {
     for (k, v) in expected {
-        dbg!(&k, &v);
         assert!(iter.is_valid());
         assert_eq!(
             k,
