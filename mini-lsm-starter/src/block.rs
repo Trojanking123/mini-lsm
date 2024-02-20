@@ -16,6 +16,11 @@ pub struct Block {
 impl Block {
     /// Encode the internal data to the data layout illustrated in the tutorial
     /// Note: You may want to recheck if any of the expected field is missing from your output
+
+    pub fn estimated_size(&self) -> usize {
+        self.data.len() + self.offsets.len() * 2 + 2
+    }
+
     pub fn encode(&self) -> Bytes {
         let mut buf = self.data.clone();
         let _: Vec<()> = self
