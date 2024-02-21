@@ -44,6 +44,7 @@ impl SsTableBuilder {
     pub fn add(&mut self, key: KeySlice, value: &[u8]) {
         if !self.builder.add(key, value) {
             let old = std::mem::replace(&mut self.builder, BlockBuilder::new(self.block_size));
+            let _ = self.builder.add(key, value);
             let block = old.build();
 
             let meta = BlockMeta {
@@ -115,8 +116,8 @@ impl SsTableBuilder {
             bloom: None,
         };
 
-        dbg!(as_bytes(self.first_key.as_bytes()));
-        dbg!(as_bytes(self.last_key.as_bytes()));
+        //dbg!(as_bytes(self.first_key.as_bytes()));
+        //dbg!(as_bytes(self.last_key.as_bytes()));
         Ok(table)
     }
 

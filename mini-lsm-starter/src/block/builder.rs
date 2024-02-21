@@ -20,6 +20,10 @@ pub struct BlockBuilder {
     /// The first key in the block
     first_key: KeyVec,
 }
+use bytes::Bytes;
+fn as_bytes(x: &[u8]) -> Bytes {
+    Bytes::copy_from_slice(x)
+}
 
 impl BlockBuilder {
     /// Creates a new block builder.
@@ -55,6 +59,7 @@ impl BlockBuilder {
         if self.first_key.is_empty() {
             self.first_key.append(key.raw_ref());
         }
+        //dbg!("block added", as_bytes(key.raw_ref()));
 
         true
     }
@@ -66,6 +71,7 @@ impl BlockBuilder {
 
     /// Finalize the block.
     pub fn build(self) -> Block {
+        //dbg!("block build");
         Block {
             data: self.data,
             offsets: self.offsets,

@@ -14,8 +14,9 @@ use anyhow::Result;
 pub use builder::SsTableBuilder;
 use bytes::{Buf, BufMut};
 pub use iterator::SsTableIterator;
+use nom::AsBytes;
 
-use crate::block::Block;
+use crate::block::{self, Block};
 use crate::key::{Key, KeyBytes, KeySlice};
 use crate::lsm_storage::BlockCache;
 
@@ -35,11 +36,7 @@ impl BlockMeta {
     /// Encode block meta to a buffer.
     /// You may add extra fields to the buffer,
     /// in order to help keep track of `first_key` when decoding from the same buffer in the future.
-    pub fn encode_block_meta(
-        block_meta: &[BlockMeta],
-        #[allow(clippy::ptr_arg)] // remove this allow after you finish
-        buf: &mut Vec<u8>,
-    ) {
+    pub fn encode_block_meta(block_meta: &[BlockMeta], buf: &mut Vec<u8>) {
         for item in block_meta.iter() {
             buf.put_u64(item.offset as u64);
             let first_key_len = item.first_key.len() as u16;
@@ -185,7 +182,25 @@ impl SsTable {
 
     /// Read a block from the disk.
     pub fn read_block(&self, block_idx: usize) -> Result<Arc<Block>> {
-        unimplemented!()
+        dbg!(block_idx);
+        dbg!(self.num_of_blocks());
+        if block_idx >= self.num_of_blocks() {
+            return Err(anyhow::Error::msg("block idx overflowed"));
+        }
+
+        //dbg!(as_bytes(&self.block_meta[block_idx].first_key.raw_ref()));
+        //dbg!(as_bytes(&self.block_meta[block_idx].last_key.raw_ref()));
+
+        let start = self.block_meta[block_idx].offset as u64;
+        let end = if block_idx + 1 == self.num_of_blocks() {
+            self.block_meta_offset as u64
+        } else {
+            self.block_meta[block_idx + 1].offset as u64
+        };
+        //dbg!(start, end);
+        let buf = self.file.read(start, end - start)?;
+        let block = Block::decode(buf.as_bytes());
+        Ok(Arc::new(block))
     }
 
     /// Read a block from disk, with block cache. (Day 4)

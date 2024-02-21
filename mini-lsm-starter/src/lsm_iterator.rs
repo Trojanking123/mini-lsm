@@ -63,19 +63,15 @@ impl StorageIterator for LsmIterator {
             match res {
                 Ok(_) => {
                     if !self.inner.is_valid() {
-                        dbg!("invalid ok");
                         return Ok(());
                     }
                     if self.value().is_empty() {
-                        dbg!("value empty coninue");
                         continue;
                     } else {
-                        dbg!("normal value");
                         return Ok(());
                     }
                 }
                 Err(e) => {
-                    dbg!("error return");
                     return Err(e);
                 }
             }
