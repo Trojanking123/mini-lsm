@@ -1,6 +1,3 @@
-#![allow(unused_variables)] // TODO(you): remove this lint after implementing this mod
-#![allow(dead_code)] // TODO(you): remove this lint after implementing this mod
-
 use std::sync::Arc;
 
 use anyhow::Result;
@@ -42,7 +39,7 @@ fn hit_block(meta: &[BlockMeta], i: usize, key: KeySlice) -> i32 {
 impl SsTableIterator {
     /// Create a new iterator and seek to the first key-value pair in the first data block.
     pub fn create_and_seek_to_first(table: Arc<SsTable>) -> Result<Self> {
-        let block = table.read_block(0)?;
+        let block = table.read_block_cached(0)?;
         let blk_iter = BlockIterator::create_and_seek_to_first(block);
         let iter = SsTableIterator {
             table,
@@ -80,7 +77,7 @@ impl SsTableIterator {
         if res < 0 {
             res = num as i64 - 1;
         }
-        let block = table.read_block(res as usize)?;
+        let block = table.read_block_cached(res as usize)?;
         let blk_iter = BlockIterator::create_and_seek_to_key(block, key);
         let iter = SsTableIterator {
             table,
@@ -122,7 +119,7 @@ impl StorageIterator for SsTableIterator {
     fn next(&mut self) -> Result<()> {
         self.blk_iter.next();
         if !self.blk_iter.is_valid() {
-            if let Ok(blk) = self.table.read_block(self.blk_idx + 1) {
+            if let Ok(blk) = self.table.read_block_cached(self.blk_idx + 1) {
                 self.blk_iter = BlockIterator::create_and_seek_to_first(blk);
                 self.blk_idx += 1;
             }

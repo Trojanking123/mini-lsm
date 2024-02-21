@@ -116,6 +116,7 @@ impl SsTableBuilder {
 
     #[cfg(test)]
     pub(crate) fn build_for_test(self, path: impl AsRef<Path>) -> Result<SsTable> {
-        self.build(0, None, path)
+        let cache = BlockCache::new(1000);
+        self.build(0, Some(Arc::new(cache)), path)
     }
 }

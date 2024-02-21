@@ -16,8 +16,8 @@ use bytes::{Buf, BufMut};
 pub use iterator::SsTableIterator;
 use nom::AsBytes;
 
-use crate::block::{self, Block};
-use crate::key::{Key, KeyBytes, KeySlice};
+use crate::block::Block;
+use crate::key::{KeyBytes, KeySlice};
 use crate::lsm_storage::BlockCache;
 
 use self::bloom::Bloom;
@@ -126,7 +126,8 @@ pub struct SsTable {
 impl SsTable {
     #[cfg(test)]
     pub(crate) fn open_for_test(file: FileObject) -> Result<Self> {
-        Self::open(0, None, file)
+        let cache = BlockCache::new(1000);
+        Self::open(0, Some(Arc::new(cache)), file)
     }
 
     /// Open SSTable from a file.
@@ -188,12 +189,27 @@ impl SsTable {
         };
         let buf = self.file.read(start, end - start)?;
         let block = Block::decode(buf.as_bytes());
-        Ok(Arc::new(block))
+        let arc_block = Arc::new(block);
+        Ok(arc_block.clone())
     }
 
     /// Read a block from disk, with block cache. (Day 4)
     pub fn read_block_cached(&self, block_idx: usize) -> Result<Arc<Block>> {
-        unimplemented!()
+        let key = (self.sst_id(), block_idx);
+        if self.block_cache.is_some() {
+            let cache = self.block_cache.as_deref().unwrap();
+            let res = match cache.get(&key) {
+                Some(v) => Ok(v.clone()),
+                None => {
+                    let block = self.read_block(block_idx)?;
+                    cache.insert(key, block.clone());
+                    Ok(block.clone())
+                }
+            };
+            return res;
+        }
+        let block = self.read_block(block_idx)?;
+        Ok(block)
     }
 
     /// Find the block that may contain `key`.
