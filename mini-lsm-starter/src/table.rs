@@ -123,11 +123,6 @@ pub struct SsTable {
     max_ts: u64,
 }
 
-use bytes::Bytes;
-fn as_bytes(x: &[u8]) -> Bytes {
-    Bytes::copy_from_slice(x)
-}
-
 impl SsTable {
     #[cfg(test)]
     pub(crate) fn open_for_test(file: FileObject) -> Result<Self> {
@@ -182,22 +177,15 @@ impl SsTable {
 
     /// Read a block from the disk.
     pub fn read_block(&self, block_idx: usize) -> Result<Arc<Block>> {
-        dbg!(block_idx);
-        dbg!(self.num_of_blocks());
         if block_idx >= self.num_of_blocks() {
             return Err(anyhow::Error::msg("block idx overflowed"));
         }
-
-        //dbg!(as_bytes(&self.block_meta[block_idx].first_key.raw_ref()));
-        //dbg!(as_bytes(&self.block_meta[block_idx].last_key.raw_ref()));
-
         let start = self.block_meta[block_idx].offset as u64;
         let end = if block_idx + 1 == self.num_of_blocks() {
             self.block_meta_offset as u64
         } else {
             self.block_meta[block_idx + 1].offset as u64
         };
-        //dbg!(start, end);
         let buf = self.file.read(start, end - start)?;
         let block = Block::decode(buf.as_bytes());
         Ok(Arc::new(block))

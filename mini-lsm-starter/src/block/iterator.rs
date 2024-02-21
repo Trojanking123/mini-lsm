@@ -18,11 +18,6 @@ pub struct BlockIterator {
     first_key: KeyVec,
 }
 
-use bytes::Bytes;
-fn as_bytes(x: &[u8]) -> Bytes {
-    Bytes::copy_from_slice(x)
-}
-
 impl BlockIterator {
     fn new(block: Arc<Block>) -> Self {
         Self {
@@ -46,7 +41,6 @@ impl BlockIterator {
             (first_key + 4) as usize,
             (first_key + 4 + value_len) as usize,
         );
-        //dbg!(as_bytes(&key.raw_ref()));
         Self {
             block,
             key: key.clone(),

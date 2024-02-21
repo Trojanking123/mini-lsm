@@ -20,10 +20,6 @@ pub struct SsTableBuilder {
     block_size: usize,
 }
 
-fn as_bytes(x: &[u8]) -> Bytes {
-    Bytes::copy_from_slice(x)
-}
-
 impl SsTableBuilder {
     /// Create a builder based on target block size.
     pub fn new(block_size: usize) -> Self {
@@ -115,9 +111,6 @@ impl SsTableBuilder {
             max_ts: 0,
             bloom: None,
         };
-
-        //dbg!(as_bytes(self.first_key.as_bytes()));
-        //dbg!(as_bytes(self.last_key.as_bytes()));
         Ok(table)
     }
 

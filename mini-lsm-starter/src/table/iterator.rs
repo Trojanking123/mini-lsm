@@ -11,7 +11,6 @@ use crate::{
     block::BlockIterator,
     iterators::StorageIterator,
     key::{KeyBytes, KeySlice},
-    table::as_bytes,
 };
 
 /// An iterator over the contents of an SSTable.
@@ -21,9 +20,7 @@ pub struct SsTableIterator {
     blk_idx: usize,
 }
 
-fn hit_block(meta: &Vec<BlockMeta>, i: usize, key: KeySlice) -> i32 {
-    dbg!("hit block");
-    dbg!(i);
+fn hit_block(meta: &[BlockMeta], i: usize, key: KeySlice) -> i32 {
     let kb = KeyBytes::from_bytes(Bytes::from(key.raw_ref().to_vec()));
 
     if i == 0 {
@@ -33,12 +30,9 @@ fn hit_block(meta: &Vec<BlockMeta>, i: usize, key: KeySlice) -> i32 {
             return 1;
         }
     }
-
-    dbg!(as_bytes(meta[i - 1].last_key.raw_ref()));
-    dbg!(as_bytes(meta[i].last_key.raw_ref()));
     if kb > meta[i - 1].last_key && kb <= meta[i].last_key {
-        return 0;
-    } else if kb < meta[i - 1].last_key {
+        0
+    } else if kb <= meta[i - 1].last_key {
         return -1;
     } else {
         return 1;
@@ -66,16 +60,12 @@ impl SsTableIterator {
 
     /// Create a new iterator and seek to the first key-value pair which >= `key`.
     pub fn create_and_seek_to_key(table: Arc<SsTable>, key: KeySlice) -> Result<Self> {
-        dbg!("seeeeeeeeeeeeeeeek to key");
-        dbg!(as_bytes(key.raw_ref()));
         let num = table.num_of_blocks();
         let mut low = 0;
         let mut high = num - 1;
         let mut res = -1;
         while low <= high {
             let mid = (low + high) / 2;
-            dbg!(low);
-            dbg!(high);
             let ans = hit_block(&table.block_meta, mid, key);
             if ans == 0 {
                 res = mid as i64;
@@ -104,7 +94,6 @@ impl SsTableIterator {
     /// Note: You probably want to review the handout for detailed explanation when implementing
     /// this function.
     pub fn seek_to_key(&mut self, key: KeySlice) -> Result<()> {
-        dbg!(as_bytes(key.raw_ref()));
         *self = SsTableIterator::create_and_seek_to_key(self.table.clone(), key)?;
         Ok(())
     }
@@ -133,7 +122,6 @@ impl StorageIterator for SsTableIterator {
     fn next(&mut self) -> Result<()> {
         self.blk_iter.next();
         if !self.blk_iter.is_valid() {
-            dbg!("blok iter invalid");
             if let Ok(blk) = self.table.read_block(self.blk_idx + 1) {
                 self.blk_iter = BlockIterator::create_and_seek_to_first(blk);
                 self.blk_idx += 1;

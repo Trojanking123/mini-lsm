@@ -100,13 +100,6 @@ impl<I: StorageIterator> StorageIterator for FusedIterator<I> {
     type KeyType<'a> = I::KeyType<'a> where Self: 'a;
 
     fn is_valid(&self) -> bool {
-        // dbg!("--------------");
-        // if self.has_errored {
-        //     dbg!(self.has_errored);
-        // } else {
-        //     dbg!(self.has_errored);
-        //     dbg!(self.iter.is_valid());
-        // }
         (!self.has_errored) && self.iter.is_valid()
     }
 
