@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::ops::Bound;
-use std::os::linux::raw::stat;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
@@ -89,6 +88,17 @@ impl LsmStorageState {
                     return Ok(Some(inner));
                 }
             }
+        }
+        let key = KeySlice::from_slice(key);
+        let mut sst_iter_vec = vec![];
+        for sid in self.l0_sstables.iter() {
+            let sst = self.sstables.get(sid).unwrap();
+            let iter = SsTableIterator::create_and_seek_to_key(sst.clone(), key)?;
+            sst_iter_vec.push(Box::new(iter));
+        }
+        let merged_iter = MergeIterator::create(sst_iter_vec);
+        if merged_iter.is_valid() && merged_iter.key() == key && !merged_iter.value().is_empty() {
+            return Ok(Some(Bytes::from(merged_iter.value().to_vec())));
         }
         Ok(None)
     }
@@ -328,8 +338,11 @@ impl LsmStorageInner {
 
     /// Get a key from the storage. In day 7, this can be further optimized by using a bloom filter.
     pub fn get(&self, key: &[u8]) -> Result<Option<Bytes>> {
-        let rd = self.state.read();
-        rd.get(key)
+        let snapshot = {
+            let rd = self.state.read();
+            Arc::clone(&rd)
+        };
+        snapshot.get(key)
     }
 
     /// Write a batch of data into the storage. Implement in week 2 day 7.
@@ -418,16 +431,19 @@ impl LsmStorageInner {
         upper: Bound<&[u8]>,
     ) -> Result<FusedIterator<LsmIterator>> {
         let mut iter_vec = Vec::new();
-        let state = self.state.read();
-        let snapshot = Arc::clone(&state);
-        iter_vec.push(Box::new(state.memtable.scan(lower, upper)));
-        for iter in state.imm_memtables.iter() {
+
+        let snapshot = {
+            let state = self.state.read();
+            Arc::clone(&state)
+        };
+        iter_vec.push(Box::new(snapshot.memtable.scan(lower, upper)));
+        for iter in snapshot.imm_memtables.iter() {
             iter_vec.push(Box::new(iter.scan(lower, upper)));
         }
         let merged_mem_iter = MergeIterator::create(iter_vec);
         let mut sst_iters = vec![];
-        for sid in state.l0_sstables.iter() {
-            let sst = state.sstables.get(sid).unwrap();
+        for sid in snapshot.l0_sstables.iter() {
+            let sst = snapshot.sstables.get(sid).unwrap();
             let iter = match lower {
                 Bound::Included(key) => {
                     SsTableIterator::create_and_seek_to_key(sst.clone(), KeySlice::from_slice(key))?

@@ -65,10 +65,7 @@ impl<
     }
 
     fn is_valid(&self) -> bool {
-        match self.which {
-            1..=2 => true,
-            _ => false,
-        }
+        matches!(self.which, 1..=2)
     }
 
     fn next(&mut self) -> Result<()> {
