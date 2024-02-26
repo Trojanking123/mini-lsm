@@ -7,12 +7,13 @@ mod iterator;
 
 use std::fs::File;
 use std::io::Write;
+use std::ops::Bound;
 use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
 pub use builder::SsTableBuilder;
-use bytes::{Buf, BufMut};
+use bytes::{Buf, BufMut, Bytes};
 pub use iterator::SsTableIterator;
 use nom::AsBytes;
 
@@ -242,5 +243,29 @@ impl SsTable {
 
     pub fn max_ts(&self) -> u64 {
         self.max_ts
+    }
+
+    pub fn is_overlap(&self, lower: &Bound<&[u8]>, upper: &Bound<&[u8]>) -> bool {
+        match upper {
+            Bound::Included(b) if b.as_bytes() < self.first_key.raw_ref() => {
+                return false;
+            },
+            Bound::Excluded(b) if b.as_bytes() <= self.first_key.raw_ref() => {
+                return false;
+            }
+            _ => {}
+        }
+
+        match lower {
+            Bound::Included(b) if b.as_bytes() > self.last_key.raw_ref() => {
+                return false;
+            },
+            Bound::Excluded(b) if b.as_bytes() >= self.last_key.raw_ref() => {
+                return false;
+            }
+            _ => {}
+        }
+
+        true
     }
 }

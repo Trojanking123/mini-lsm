@@ -112,4 +112,12 @@ impl<I: 'static + for<'a> StorageIterator<KeyType<'a> = KeySlice<'a>>> StorageIt
         let _ = std::mem::replace(&mut self.current, cur);
         Ok(())
     }
+
+    fn num_active_iterators(&self) -> usize {
+        let mut size = self.iters.len();
+        if self.current.is_some() {
+            size += 1;
+        }
+        size
+    }
 }
