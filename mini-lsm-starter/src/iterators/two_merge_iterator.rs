@@ -6,6 +6,7 @@ use std::cmp::Ordering;
 use anyhow::Result;
 
 use super::StorageIterator;
+use std::backtrace::Backtrace;
 
 /// Merges two iterators of different types into one. If the two iterators have the same key, only
 /// produce the key once and prefer the entry from A.
@@ -34,7 +35,6 @@ impl<
         };
 
         let iter = TwoMergeIterator { a, b, which };
-
         Ok(iter)
     }
 }
@@ -87,15 +87,14 @@ impl<
 
         let which = match (self.a.is_valid(), self.b.is_valid()) {
             (true, true) => match self.a.key().cmp(&self.b.key()) {
-                Ordering::Greater => 1,
+                Ordering::Greater => 2,
                 Ordering::Equal => 1,
-                Ordering::Less => 2,
+                Ordering::Less => 1,
             },
             (true, false) => 1,
             (false, true) => 2,
             (false, false) => 0,
         };
-        //dbg!(which);
         self.which = which;
         Ok(())
     }

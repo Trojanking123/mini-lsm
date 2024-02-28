@@ -469,7 +469,7 @@ impl LsmStorageInner {
         let mut sst_iters = vec![];
         for sid in snapshot.l0_sstables.iter() {
             let sst = snapshot.sstables.get(sid).unwrap();
-            if ! sst.is_overlap(&lower, &upper) {
+            if !sst.is_overlap(&lower, &upper) {
                 continue;
             }
             let iter = match lower {

@@ -24,10 +24,13 @@ pub struct LsmIterator {
     inner: LsmIteratorInner,
     end_bound: Bound<Bytes>,
 }
-
+pub fn as_bytes(x: &[u8]) -> Bytes {
+    Bytes::copy_from_slice(x)
+}
 impl LsmIterator {
     pub(crate) fn new(iter: LsmIteratorInner, end: Bound<Bytes>) -> Result<Self> {
         let mut iter = iter;
+
         loop {
             if iter.is_valid() {
                 if iter.value().is_empty() {
@@ -104,7 +107,7 @@ impl StorageIterator for LsmIterator {
             }
         }
     }
-    
+
     fn num_active_iterators(&self) -> usize {
         self.inner.num_active_iterators()
     }

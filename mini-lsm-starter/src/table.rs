@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 pub use builder::SsTableBuilder;
-use bytes::{Buf, BufMut, Bytes};
+use bytes::{Buf, BufMut};
 pub use iterator::SsTableIterator;
 use nom::AsBytes;
 
@@ -249,7 +249,7 @@ impl SsTable {
         match upper {
             Bound::Included(b) if b.as_bytes() < self.first_key.raw_ref() => {
                 return false;
-            },
+            }
             Bound::Excluded(b) if b.as_bytes() <= self.first_key.raw_ref() => {
                 return false;
             }
@@ -259,7 +259,7 @@ impl SsTable {
         match lower {
             Bound::Included(b) if b.as_bytes() > self.last_key.raw_ref() => {
                 return false;
-            },
+            }
             Bound::Excluded(b) if b.as_bytes() >= self.last_key.raw_ref() => {
                 return false;
             }
