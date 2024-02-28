@@ -93,8 +93,10 @@ impl LsmStorageState {
         let mut sst_iter_vec = vec![];
         for sid in self.l0_sstables.iter() {
             let sst = self.sstables.get(sid).unwrap();
-            let iter = SsTableIterator::create_and_seek_to_key(sst.clone(), key)?;
-            sst_iter_vec.push(Box::new(iter));
+            if sst.may_contain(key) {
+                let iter = SsTableIterator::create_and_seek_to_key(sst.clone(), key)?;
+                sst_iter_vec.push(Box::new(iter));
+            }
         }
         let merged_iter = MergeIterator::create(sst_iter_vec);
         if merged_iter.is_valid() && merged_iter.key() == key && !merged_iter.value().is_empty() {

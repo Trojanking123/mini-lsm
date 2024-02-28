@@ -133,24 +133,30 @@ impl SsTable {
 
     /// Open SSTable from a file.
     pub fn open(id: usize, block_cache: Option<Arc<BlockCache>>, file: FileObject) -> Result<Self> {
-        let len = file.size();
-        let buf = file.read(0, len).unwrap();
-        let mut last_four = &buf[(len - 4) as usize..];
-        let offset = last_four.get_u32() as usize;
+        let len = file.size() as usize;
+        let buf = file.read(0, len as u64).unwrap();
 
-        let metas_buf = &buf[offset..len as usize - 4];
-        let metas = BlockMeta::decode_block_meta(metas_buf);
+        let mut last_four = &buf[(len - 4)..];
+        let bloom_offset = last_four.get_u32() as usize;
+        let bloom_buf = &buf[bloom_offset..len - 4];
+        let bloom_num = bloom_buf.len();
+        let bloom = Bloom::decode(bloom_buf)?;
+
+        let mut last_meta_four = &buf[(len - 8 - bloom_num)..(len - 4 - bloom_num)];
+        let meta_offset = last_meta_four.get_u32() as usize;
+        let meta_buf = &buf[meta_offset..(len - 8 - bloom_num)];
+        let metas = BlockMeta::decode_block_meta(meta_buf);
         let first_key = metas.first().unwrap().first_key.clone();
         let last_key = metas.last().unwrap().last_key.clone();
         let sst = SsTable {
             file,
             block_meta: metas,
-            block_meta_offset: offset,
+            block_meta_offset: meta_offset,
             id,
             block_cache,
             first_key,
             last_key,
-            bloom: None,
+            bloom: Some(bloom),
             max_ts: 0,
         };
 
@@ -267,5 +273,13 @@ impl SsTable {
         }
 
         true
+    }
+
+    pub fn may_contain(&self, key: KeySlice) -> bool {
+        if self.bloom.is_some() {
+            let bloom = self.bloom.as_ref().unwrap();
+            return bloom.may_contain(farmhash::fingerprint32(key.raw_ref()));
+        }
+        return true;
     }
 }

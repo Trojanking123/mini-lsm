@@ -2,6 +2,7 @@
 
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
+use serde::de;
 
 /// Implements a bloom filter
 pub struct Bloom {
@@ -79,7 +80,14 @@ impl Bloom {
         let mut filter = BytesMut::with_capacity(nbytes);
         filter.resize(nbytes, 0);
 
-        // TODO: build the bloom filter
+        for key in keys {
+            let mut key = *key;
+            let delta = (key >> 17) | (key << 15);
+            for _ in 0..k {
+                filter.set_bit(delta as usize % nbits, true);
+                key = key.wrapping_add(delta);
+            }
+        }
 
         Self {
             filter: filter.freeze(),
@@ -93,10 +101,17 @@ impl Bloom {
             // potential new encoding for short bloom filters
             true
         } else {
+            let mut h = h;
             let nbits = self.filter.bit_len();
             let delta = (h >> 17) | (h << 15);
 
-            // TODO: probe the bloom filter
+            for _ in 0..self.k {
+                let bit = self.filter.get_bit(delta as usize % nbits);
+                if !bit {
+                    return false;
+                }
+                h = h.wrapping_add(delta);
+            }
 
             true
         }
