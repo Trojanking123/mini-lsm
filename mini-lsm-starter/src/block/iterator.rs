@@ -31,16 +31,12 @@ impl BlockIterator {
 
     /// Creates a block iterator and seek to the first entry.
     pub fn create_and_seek_to_first(block: Arc<Block>) -> Self {
-        let mut buf = block.data.as_slice();
-        let first_key = buf.get_u16();
-        let key = &buf[..first_key as usize];
-        let key = KeyVec::from_vec(key.to_vec());
-        buf = &buf[first_key as usize..];
-        let value_len = buf.get_u16();
-        let value_range = (
-            (first_key + 4) as usize,
-            (first_key + 4 + value_len) as usize,
-        );
+        let key = block.first_key.clone();
+        let start = 4 + key.len();
+        let buf = block.data.as_slice();
+        let mut buf = &buf[start..];
+        let value_len = buf.get_u16() as usize;
+        let value_range = (start as usize + 2, start + 2 + value_len);
         Self {
             block,
             key: key.clone(),

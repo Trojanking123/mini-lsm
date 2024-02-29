@@ -5,7 +5,7 @@ use std::io::Write;
 
 use bytes::BufMut;
 
-use crate::key::{KeySlice, KeyVec};
+use crate::key::{Key, KeySlice, KeyVec};
 
 use super::Block;
 
@@ -36,6 +36,21 @@ impl BlockBuilder {
         self.offsets.len() * 2 + self.data.len() + 2
     }
 
+    fn get_overlap_metric(&self, key: KeySlice) -> (u16, u16) {
+        if self.first_key.is_empty() {
+            (0, key.len() as u16)
+        } else {
+            let num = self
+                .first_key
+                .raw_ref()
+                .iter()
+                .zip(key.raw_ref().iter())
+                .take_while(|&(a, b)| a == b)
+                .count() as u16;
+            (num, key.len() as u16 - num)
+        }
+    }
+
     /// Adds a key-value pair to the block. Returns false when the block is full.
     #[must_use]
     pub fn add(&mut self, key: KeySlice, value: &[u8]) -> bool {
@@ -46,11 +61,18 @@ impl BlockBuilder {
         if (!self.is_empty()) && (total_len + self.esize() + 2 > self.block_size) {
             return false;
         }
-        self.data.put_u16(key_len as u16);
-        let _ = self.data.write(key.raw_ref()).unwrap();
+
+        self.offsets.push(self.data.len() as u16);
+        let (overlap_num, rest_num) = self.get_overlap_metric(key);
+
+        self.data.put_u16(overlap_num);
+        self.data.put_u16(rest_num);
+        let _ = self
+            .data
+            .write(&key.raw_ref()[overlap_num as usize..])
+            .unwrap();
         self.data.put_u16(value_len as u16);
         let _ = self.data.write(value).unwrap();
-        self.offsets.push(total_len as u16);
 
         if self.first_key.is_empty() {
             self.first_key.append(key.raw_ref());
@@ -69,6 +91,7 @@ impl BlockBuilder {
         Block {
             data: self.data,
             offsets: self.offsets,
+            first_key: self.first_key,
         }
     }
 }
