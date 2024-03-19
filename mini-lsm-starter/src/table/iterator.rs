@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cmp::Ordering, sync::Arc};
 
 use anyhow::Result;
 use bytes::Bytes;
@@ -64,13 +64,14 @@ impl SsTableIterator {
         while low <= high {
             let mid = (low + high) / 2;
             let ans = hit_block(&table.block_meta, mid, key);
-            if ans == 0 {
-                res = mid as i64;
-                break;
-            } else if ans < 0 {
-                high = mid - 1;
-            } else {
-                low = mid + 1;
+
+            match ans.cmp(&0) {
+                Ordering::Equal => {
+                    res = mid as i64;
+                    break;
+                }
+                Ordering::Greater => low = mid + 1,
+                Ordering::Less => high = mid - 1,
             }
         }
 

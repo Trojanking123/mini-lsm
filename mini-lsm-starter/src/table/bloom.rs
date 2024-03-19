@@ -2,7 +2,6 @@
 
 use anyhow::Result;
 use bytes::{BufMut, Bytes, BytesMut};
-use serde::de;
 
 /// Implements a bloom filter
 pub struct Bloom {

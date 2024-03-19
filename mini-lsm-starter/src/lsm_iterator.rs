@@ -35,7 +35,7 @@ impl LsmIterator {
                         Ok(_) => {
                             continue;
                         }
-                        Err(e) => {
+                        Err(_) => {
                             break;
                         }
                     }
@@ -53,10 +53,10 @@ impl LsmIterator {
     }
 }
 
-fn key_to_bound(key: &[u8]) -> Bound<Bytes> {
-    let bytes = Bytes::from(key.to_vec());
-    Bound::Included(bytes)
-}
+// fn key_to_bound(key: &[u8]) -> Bound<Bytes> {
+//     let bytes = Bytes::from(key.to_vec());
+//     Bound::Included(bytes)
+// }
 
 impl StorageIterator for LsmIterator {
     type KeyType<'a> = &'a [u8];

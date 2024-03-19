@@ -36,7 +36,7 @@ impl BlockIterator {
         let buf = block.data.as_slice();
         let mut buf = &buf[start..];
         let value_len = buf.get_u16() as usize;
-        let value_range = (start as usize + 2, start + 2 + value_len);
+        let value_range = (start + 2, start + 2 + value_len);
         Self {
             block,
             key: key.clone(),
@@ -51,29 +51,32 @@ impl BlockIterator {
         let target_key = key;
         let num = block.offsets.len();
         let mut buf = block.data.as_slice();
-        let mut target_len: u16 = 0;
         for i in 00..num {
-            let key_len = buf.get_u16();
-            let key = &buf[..key_len as usize];
-            buf = &buf[key_len as usize..];
-            let value_len = buf.get_u16();
-            buf = &buf[value_len as usize..];
+            let overlap_key_len = buf.get_u16() as usize;
+            let reset_key_len = buf.get_u16() as usize;
 
-            if key >= target_key.raw_ref() {
-                let first_key = KeyVec::from_vec(key.to_vec());
+            let rest_key = &buf[..reset_key_len];
+            buf = &buf[reset_key_len..];
 
+            let full_key = [&block.first_key.raw_ref()[..overlap_key_len], &rest_key].concat();
+
+            let value_len = buf.get_u16() as usize;
+            buf = &buf[value_len..];
+
+            if &full_key[..] >= target_key.raw_ref() {
+                let first_key = KeyVec::from_vec(full_key);
+                let offset = block.offsets[i] as usize;
                 return BlockIterator {
                     block,
                     key: first_key.clone(),
                     value_range: (
-                        (target_len + key_len + 4) as usize,
-                        (target_len + key_len + 4 + value_len) as usize,
+                        (offset + reset_key_len + 6),
+                        (offset + reset_key_len + 6 + value_len),
                     ),
                     idx: i,
                     first_key,
                 };
             }
-            target_len += key_len + value_len + 4;
         }
 
         let mut iter = BlockIterator::new(block);
@@ -112,14 +115,25 @@ impl BlockIterator {
         } else {
             let (_, end) = self.value_range;
             let mut buf = &self.block.data.as_slice()[end..];
-            let key_len = buf.get_u16() as usize;
-            let key = &buf[..key_len];
-            let key = KeyVec::from_vec(key.to_vec());
-            buf = &buf[key_len..];
-            let value_len = buf.get_u16() as usize;
 
-            let value_range = (end + key_len + 4, end + key_len + 4 + value_len);
-            self.key = key;
+            let overlap_key_len = buf.get_u16() as usize;
+            let reset_key_len = buf.get_u16() as usize;
+            let rest_key = &buf[..reset_key_len];
+            buf = &buf[reset_key_len..];
+
+            let full_key = [
+                &self.block.first_key.raw_ref()[..overlap_key_len],
+                &rest_key,
+            ]
+            .concat();
+
+            let value_len = buf.get_u16() as usize;
+            let offset = self.block.offsets[self.idx + 1] as usize;
+            let value_range = (
+                offset + reset_key_len + 6,
+                offset + reset_key_len + 6 + value_len,
+            );
+            self.key = KeyVec::from_vec(full_key);
             self.value_range = value_range;
             self.idx += 1;
         }

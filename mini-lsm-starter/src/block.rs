@@ -1,14 +1,12 @@
 mod builder;
 mod iterator;
 
+use crate::key::KeyVec;
 pub use builder::BlockBuilder;
 use bytes::Buf;
 use bytes::BufMut;
 use bytes::Bytes;
 pub use iterator::BlockIterator;
-
-use crate::key::Key;
-use crate::key::KeyVec;
 
 /// A block is the smallest unit of read and caching in LSM tree. It is a collection of sorted key-value pairs.
 pub struct Block {
@@ -42,7 +40,7 @@ impl Block {
         let num = last_two.get_u16();
 
         let offset_buf_len = (num * 2) as usize;
-        let buf_end = data.len() - 2 as usize;
+        let buf_end = data.len() - 2;
 
         let entries = data[..data.len() - 2 - offset_buf_len].to_vec();
         let mut buf = &data[buf_end - offset_buf_len..buf_end];

@@ -280,6 +280,6 @@ impl SsTable {
             let bloom = self.bloom.as_ref().unwrap();
             return bloom.may_contain(farmhash::fingerprint32(key.raw_ref()));
         }
-        return true;
+        true
     }
 }

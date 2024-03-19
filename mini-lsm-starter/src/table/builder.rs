@@ -7,7 +7,7 @@ use nom::AsBytes;
 
 use super::bloom::Bloom;
 use super::{BlockMeta, SsTable};
-use crate::key::{Key, KeyBytes};
+use crate::key::KeyBytes;
 use crate::table::FileObject;
 use crate::{block::BlockBuilder, key::KeySlice, lsm_storage::BlockCache};
 
@@ -103,7 +103,7 @@ impl SsTableBuilder {
         let bloom_offset = data.len();
         let bits_per_key = Bloom::bloom_bits_per_key(self.key_hash_vec.len(), 0.01);
         let bloom = Bloom::build_from_key_hashes(&self.key_hash_vec, bits_per_key);
-        let bloom_data = bloom.encode(&mut data);
+        bloom.encode(&mut data);
         data.put_u32(bloom_offset as u32);
 
         let first_key = meta_vec.first().unwrap().first_key.clone();
