@@ -76,13 +76,13 @@ L67 (1): [67]
 L40 (27): [39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 13, 14, 15, 16, 17, 18, 19, 20, 21]
 ```
 
-The `num_iters` in the compaction simulator is set to 3. However, there are far more than 3 iters in the LSM state, which incurs large read amplification.
+The `num_tiers` in the compaction simulator is set to 3. However, there are far more than 3 tiers in the LSM state, which incurs large read amplification.
 
 The current trigger only reduces space amplification. We will need to add new triggers to the compaction algorithm to reduce read amplification.
 
 ### Task 1.2: Triggered by Size Ratio
 
-The next trigger is the size ratio trigger. For all tiers, if there is a tier `n` that `size of all previous tiers / this tier >= (1 + size_ratio) * 100%`, we will compact all `n` tiers. We only do this compaction with there are more than `min_merge_width` tiers to be merged.
+The next trigger is the size ratio trigger. For all tiers, if there is a tier `n` that `size of all previous tiers / this tier >= (100 + size_ratio) * 100%`, we will compact all `n` tiers. We only do this compaction with there are more than `min_merge_width` tiers to be merged.
 
 With this trigger, you will observe the following in the compaction simulator:
 
